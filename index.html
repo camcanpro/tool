@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="我的工具">
+<title>我的工具箱</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+    margin: 0;
+    padding: 20px 16px 40px;
+    background: #f5f5f7;
+    color: #1d1d1f;
+    min-height: 100vh;
+  }
+  .header {
+    margin-bottom: 24px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    letter-spacing: -0.5px;
+  }
+  .subtitle {
+    font-size: 14px;
+    color: #6e6e73;
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6e6e73;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 24px 4px 10px;
+  }
+  .tool-card {
+    display: block;
+    background: white;
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    position: relative;
+  }
+  .tool-card:active {
+    transform: scale(0.98);
+    background: #f9f9fb;
+  }
+  .tool-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .icon {
+    font-size: 32px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f2f2f7;
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+  .info {
+    flex: 1;
+    min-width: 0;
+  }
+  .tool-name {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .tool-desc {
+    font-size: 13px;
+    color: #6e6e73;
+    line-height: 1.35;
+  }
+  .arrow {
+    color: #c7c7cc;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .badge-new { background: #34c759; color: white; }
+  .badge-test { background: #ff9500; color: white; }
+  .footer {
+    text-align: center;
+    margin-top: 32px;
+    font-size: 12px;
+    color: #8e8e93;
+  }
+  .footer a {
+    color: #007aff;
+    text-decoration: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🧰 我的工具箱</h1>
+  <div class="subtitle">Bill 的投资 & 实用工具集</div>
+</div>
+
+<div class="section-title">💰 投资工具</div>
+
+<a class="tool-card" href="trades.html">
+  <div class="tool-row">
+    <div class="icon">📓</div>
+    <div class="info">
+      <div class="tool-name">我的交易簿<span class="badge badge-new">NEW</span></div>
+      <div class="tool-desc">语音/手动录入交易，FIFO 实时盈亏</div>
+    </div>
+    <div class="arrow">›</div>
+  </div>
+</a>
+
+<div class="section-title">🛠 诊断 & 测试</div>
+
+<a class="tool-card" href="mic_test.html">
+  <div class="tool-row">
+    <div class="icon">🎤</div>
+    <div class="info">
+      <div class="tool-name">麦克风诊断<span class="badge badge-test">TEST</span></div>
+      <div class="tool-desc">检测 getUserMedia / SpeechRecognition / MediaRecorder</div>
+    </div>
+    <div class="arrow">›</div>
+  </div>
+</a>
+
+<!-- 
+未来加新工具，复制下面这段，改 href / icon / name / desc 即可：
+
+<a class="tool-card" href="新工具.html">
+  <div class="tool-row">
+    <div class="icon">📊</div>
+    <div class="info">
+      <div class="tool-name">新工具名</div>
+      <div class="tool-desc">一句话描述</div>
+    </div>
+    <div class="arrow">›</div>
+  </div>
+</a>
+-->
+
+<div class="footer">
+  Hosted on GitHub Pages · 添加到主屏幕用得更顺手<br>
+  分享 → 添加到主屏幕
+</div>
+
+</body>
+</html>

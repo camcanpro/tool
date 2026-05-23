@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="交易簿">
+<title>我的交易簿</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+    margin: 0;
+    padding: 16px;
+    background: #f5f5f7;
+    color: #1d1d1f;
+    min-height: 100vh;
+    padding-bottom: 120px;
+  }
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .back-link {
+    color: #007aff;
+    text-decoration: none;
+    font-size: 15px;
+  }
+  h1 { font-size: 26px; margin: 0; font-weight: 700; }
+  .date { color: #8e8e93; font-size: 13px; }
+  
+  .card {
+    background: white;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  
+  .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .stat-label { font-size: 12px; color: #8e8e93; margin-bottom: 4px; }
+  .stat-value { font-size: 20px; font-weight: 700; }
+  .green { color: #34c759; }
+  .red { color: #ff3b30; }
+  .gray { color: #8e8e93; }
+  
+  .controls { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
+  select, input[type=text], input[type=number], input[type=date] {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 15px;
+    border: 1px solid #d2d2d7;
+    border-radius: 10px;
+    background: white;
+    -webkit-appearance: none;
+    font-family: inherit;
+  }
+  button {
+    padding: 10px 16px;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    background: #1d1d1f;
+    color: white;
+    cursor: pointer;
+    -webkit-appearance: none;
+  }
+  button.secondary { background: #e5e5ea; color: #1d1d1f; }
+  button.danger { background: #ff3b30; color: white; }
+  button:active { opacity: 0.7; }
+  
+  .label-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .label-row label { font-size: 14px; color: #6e6e73; font-weight: 500; }
+  
+  .position-card {
+    background: white;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 8px;
+    border-left: 4px solid #007aff;
+  }
+  .position-card.closed { border-left-color: #8e8e93; opacity: 0.85; }
+  .position-card.profit { border-left-color: #34c759; }
+  .position-card.loss { border-left-color: #ff3b30; }
+  
+  .pos-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .pos-symbol { font-size: 17px; font-weight: 700; }
+  .pos-market { font-size: 11px; color: #8e8e93; background: #f2f2f7; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
+  .pos-pnl { font-size: 17px; font-weight: 700; }
+  .pos-detail { font-size: 13px; color: #6e6e73; line-height: 1.5; }
+  .pos-trades { margin-top: 8px; font-size: 12px; color: #8e8e93; }
+  .trade-line { padding: 4px 0; border-top: 1px dashed #e5e5ea; }
+  .trade-line:first-child { border-top: none; }
+  .trade-buy { color: #34c759; }
+  .trade-sell { color: #ff3b30; }
+  
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #8e8e93;
+    background: white;
+    border-radius: 12px;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  
+  /* 浮动操作按钮 */
+  .fab-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 100;
+  }
+  .fab {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #1d1d1f;
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    font-size: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .fab.add { background: white; color: #1d1d1f; font-size: 32px; font-weight: 300; }
+  .fab.mic { background: #1d1d1f; }
+  .fab.recording { background: #ff3b30; animation: pulse 1.2s infinite; }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 4px 12px rgba(255,59,48,0.4); }
+    50% { box-shadow: 0 4px 24px rgba(255,59,48,0.8); }
+  }
+  
+  /* 弹窗 */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    align-items: flex-end;
+    z-index: 200;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #f5f5f7;
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+    padding: 20px 16px 30px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal h2 { margin: 0 0 16px; font-size: 20px; }
+  .form-row { margin-bottom: 12px; }
+  .form-row label { display: block; font-size: 13px; color: #6e6e73; margin-bottom: 6px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+  .modal-actions button { flex: 1; padding: 14px; font-size: 16px; }
+  
+  /* 语音弹窗 */
+  .voice-status {
+    text-align: center;
+    padding: 30px 20px;
+  }
+  .voice-icon {
+    font-size: 60px;
+    margin-bottom: 16px;
+  }
+  .voice-text {
+    min-height: 60px;
+    font-size: 18px;
+    padding: 14px;
+    background: white;
+    border-radius: 12px;
+    margin: 16px 0;
+    line-height: 1.5;
+  }
+  .voice-parsed {
+    background: #e8f5e9;
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 12px;
+    font-size: 14px;
+    text-align: left;
+    line-height: 1.6;
+  }
+  .voice-hint {
+    font-size: 13px;
+    color: #6e6e73;
+    line-height: 1.6;
+    text-align: left;
+    background: white;
+    padding: 12px;
+    border-radius: 10px;
+  }
+  
+  .footer-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .footer-actions button { flex: 1; }
+  
+  /* 当前价 chip */
+  .price-chip {
+    display: inline-block;
+    background: #f2f2f7;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    margin-left: 6px;
+    color: #6e6e73;
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <a href="index.html" class="back-link">‹ 工具箱</a>
+  <span class="date" id="todayDate"></span>
+</div>
+
+<h1>📓 我的交易簿</h1>
+
+<!-- 统计 -->
+<div class="card">
+  <div class="stats">
+    <div>
+      <div class="stat-label">浮动盈亏</div>
+      <div class="stat-value" id="floatPnl">$0.00</div>
+    </div>
+    <div>
+      <div class="stat-label">已实现</div>
+      <div class="stat-value" id="realizedPnl">$0.00</div>
+    </div>
+    <div>
+      <div class="stat-label">总计</div>
+      <div class="stat-value" id="totalPnl">$0.00</div>
+    </div>
+  </div>
+  <div class="controls">
+    <select id="strategy">
+      <option value="FIFO">FIFO（先进先出）</option>
+      <option value="LIFO">LIFO（后进先出）</option>
+    </select>
+    <button onclick="refreshPrices()" id="refreshBtn">🔄 刷新</button>
+  </div>
+  <div style="margin-top:8px; font-size:12px; color:#8e8e93;" id="lastUpdate">尚未更新</div>
+</div>
+
+<!-- 快速查价 -->
+<div class="card">
+  <div class="label-row"><label>快速查价</label></div>
+  <div style="display:flex; gap:8px;">
+    <input type="text" id="quickQuery" placeholder="例: TSLA, 0981.HK, 600519.SS" autocapitalize="characters">
+    <button onclick="quickPrice()">查</button>
+  </div>
+  <div id="quickResult" style="margin-top:10px; font-size:14px;"></div>
+</div>
+
+<!-- 持仓列表 -->
+<div style="margin: 16px 4px 8px; font-size: 14px; color: #6e6e73; font-weight: 600;">
+  持仓 & 已清仓 <span id="posCount" style="color:#8e8e93;">(0)</span>
+</div>
+<div id="positions"></div>
+
+<!-- 导入导出 -->
+<div class="footer-actions">
+  <button class="secondary" onclick="exportJSON()">⬇ 导出 JSON</button>
+  <button class="secondary" onclick="document.getElementById('fileInput').click()">⬆ 导入 JSON</button>
+  <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importJSON(event)">
+</div>
+
+<!-- 浮动按钮 -->
+<div class="fab-container">
+  <button class="fab add" onclick="openAddModal()">+</button>
+  <button class="fab mic" id="micBtn" onclick="toggleVoice()">🎤</button>
+</div>
+
+<!-- 添加/编辑交易弹窗 -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <h2 id="modalTitle">添加交易</h2>
+    <div class="form-row">
+      <label>方向</label>
+      <div style="display:flex; gap:8px;">
+        <button class="secondary" id="btnBuy" onclick="setAction('BUY')" style="flex:1;">买入</button>
+        <button class="secondary" id="btnSell" onclick="setAction('SELL')" style="flex:1;">卖出</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>股票代码</label>
+      <input type="text" id="inSymbol" placeholder="TSLA / 0981.HK / 600519.SS" autocapitalize="characters">
+    </div>
+    <div class="form-row" style="display:flex; gap:10px;">
+      <div style="flex:1;">
+        <label>数量</label>
+        <input type="number" id="inQty" inputmode="decimal" placeholder="100">
+      </div>
+      <div style="flex:1;">
+        <label>价格</label>
+        <input type="number" id="inPrice" inputmode="decimal" step="0.01" placeholder="250.00">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>日期</label>
+      <input type="date" id="inDate">
+    </div>
+    <div class="form-row">
+      <label>备注（可选）</label>
+      <input type="text" id="inNote" placeholder="">
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeAddModal()">取消</button>
+      <button onclick="saveTradeFromForm()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 语音输入弹窗 -->
+<div class="modal-overlay" id="voiceModal">
+  <div class="modal">
+    <h2>🎤 语音录入</h2>
+    <div class="voice-status">
+      <div class="voice-icon" id="voiceIcon">🎙</div>
+      <div id="voiceStatus" style="color:#6e6e73; font-size:14px;">点开始后说话</div>
+      <div class="voice-text" id="voiceText">（识别结果会显示在这里）</div>
+      <div class="voice-parsed" id="voiceParsed" style="display:none;"></div>
+    </div>
+    <div class="voice-hint">
+      <strong>说话示例：</strong><br>
+      • "买入特斯拉 100 股 250 块"<br>
+      • "卖出 TSLA 50 股 280"<br>
+      • "买 0981 港币 75 块 500 股"<br>
+      • "买入 600519 茅台 10 股 1800"
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeVoiceModal()">取消</button>
+      <button id="voiceConfirmBtn" onclick="confirmVoice()" disabled>确认添加</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ 全局状态 ============
+const STORAGE_KEY = 'my_trades_v1';
+let trades = []; // {id, symbol, action, qty, price, date, note, market}
+let prices = {}; // symbol -> {price, change, time}
+let currentEditId = null;
+let currentAction = 'BUY';
+let voiceParseResult = null;
+
+// ============ 启动 ============
+window.addEventListener('load', () => {
+  loadTrades();
+  document.getElementById('todayDate').textContent = new Date().toLocaleDateString('zh-CN');
+  document.getElementById('inDate').value = new Date().toISOString().slice(0,10);
+  render();
+});
+
+// ============ 数据持久化 ============
+function loadTrades() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (data) trades = JSON.parse(data);
+  } catch(e) { console.error(e); }
+}
+function saveTrades() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
+}
+
+// ============ 市场识别 ============
+function detectMarket(symbol) {
+  symbol = symbol.toUpperCase().trim();
+  if (/\.HK$/.test(symbol) || /^\d{4,5}$/.test(symbol)) return 'HK';
+  if (/\.(SS|SZ|SH)$/.test(symbol) || /^[36]\d{5}$/.test(symbol) || /^0\d{5}$/.test(symbol)) return 'CN';
+  return 'US';
+}
+function normalizeSymbol(symbol) {
+  symbol = symbol.toUpperCase().trim();
+  // 港股 4-5 位数字自动加 .HK
+  if (/^\d{4,5}$/.test(symbol)) return symbol.padStart(4,'0') + '.HK';
+  // A股自动加后缀
+  if (/^[6]\d{5}$/.test(symbol)) return symbol + '.SS';
+  if (/^[03]\d{5}$/.test(symbol)) return symbol + '.SZ';
+  return symbol;
+}
+function currencySymbol(market) {
+  return market === 'HK' ? 'HK$' : market === 'CN' ? '¥' : '$';
+}
+
+// ============ 价格获取（Yahoo Finance） ============
+async function fetchPrice(symbol) {
+  try {
+    // 通过 Yahoo Finance 的公开 API
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d`;
+    // CORS 代理（如需要）
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    const resp = await fetch(proxyUrl);
+    const data = await resp.json();
+    const result = data.chart?.result?.[0];
+    if (!result) throw new Error('no data');
+    const meta = result.meta;
+    const price = meta.regularMarketPrice;
+    const prev = meta.chartPreviousClose || meta.previousClose;
+    const change = price - prev;
+    const changePct = (change / prev) * 100;
+    return { price, change, changePct, prev, currency: meta.currency };
+  } catch(e) {
+    console.error('fetchPrice fail:', symbol, e);
+    return null;
+  }
+}
+
+async function refreshPrices() {
+  const symbols = [...new Set(trades.map(t => normalizeSymbol(t.symbol)))];
+  if (symbols.length === 0) {
+    document.getElementById('lastUpdate').textContent = '没有持仓';
+    return;
+  }
+  const btn = document.getElementById('refreshBtn');
+  btn.textContent = '⏳ 更新中';
+  btn.disabled = true;
+  
+  for (const sym of symbols) {
+    const result = await fetchPrice(sym);
+    if (result) prices[sym] = result;
+  }
+  
+  document.getElementById('lastUpdate').textContent = '更新于 ' + new Date().toLocaleTimeString('zh-CN');
+  btn.textContent = '🔄 刷新';
+  btn.disabled = false;
+  render();
+}
+
+async function quickPrice() {
+  const q = document.getElementById('quickQuery').value.trim();
+  if (!q) return;
+  const sym = normalizeSymbol(q);
+  document.getElementById('quickResult').textContent = '查询中...';
+  const result = await fetchPrice(sym);
+  if (!result) {
+    document.getElementById('quickResult').innerHTML = `<span class="red">❌ 查不到 ${sym}</span>`;
+    return;
+  }
+  const cls = result.change >= 0 ? 'green' : 'red';
+  const sign = result.change >= 0 ? '+' : '';
+  document.getElementById('quickResult').innerHTML = 
+    `<strong>${sym}</strong>: ${result.currency || ''} ${result.price.toFixed(2)} ` +
+    `<span class="${cls}">${sign}${result.change.toFixed(2)} (${sign}${result.changePct.toFixed(2)}%)</span>`;
+}
+
+// ============ FIFO/LIFO 配对 ============
+function computePositions() {
+  const strategy = document.getElementById('strategy').value;
+  const grouped = {};
+  trades.forEach(t => {
+    const sym = normalizeSymbol(t.symbol);
+    if (!grouped[sym]) grouped[sym] = [];
+    grouped[sym].push(t);
+  });
+  
+  const positions = [];
+  for (const sym in grouped) {
+    const ts = grouped[sym].slice().sort((a,b) => a.date.localeCompare(b.date));
+    const buys = []; // 待匹配的买入
+    let realized = 0;
+    const pairs = []; // 已配对的
+    
+    ts.forEach(t => {
+      if (t.action === 'BUY') {
+        buys.push({ qty: t.qty, price: t.price, date: t.date, id: t.id });
+      } else { // SELL
+        let remaining = t.qty;
+        while (remaining > 0 && buys.length > 0) {
+          const idx = strategy === 'LIFO' ? buys.length - 1 : 0;
+          const b = buys[idx];
+          const matchQty = Math.min(b.qty, remaining);
+          realized += (t.price - b.price) * matchQty;
+          pairs.push({
+            buyDate: b.date, buyPrice: b.price,
+            sellDate: t.date, sellPrice: t.price,
+            qty: matchQty, pnl: (t.price - b.price) * matchQty
+          });
+          b.qty -= matchQty;
+          remaining -= matchQty;
+          if (b.qty <= 0) buys.splice(idx, 1);
+        }
+      }
+    });
+    
+    // 剩余持仓
+    const openQty = buys.reduce((s,b) => s + b.qty, 0);
+    const openCost = buys.reduce((s,b) => s + b.qty * b.price, 0);
+    const avgCost = openQty > 0 ? openCost / openQty : 0;
+    
+    const priceInfo = prices[sym];
+    const market = detectMarket(sym);
+    const curPrice = priceInfo?.price;
+    const floatPnl = curPrice && openQty > 0 ? (curPrice - avgCost) * openQty : 0;
+    
+    positions.push({
+      symbol: sym, market,
+      openQty, avgCost, openCost,
+      curPrice, floatPnl,
+      realized, pairs,
+      trades: ts,
+      changePct: priceInfo?.changePct
+    });
+  }
+  return positions.sort((a,b) => {
+    // 持仓在前
+    if (a.openQty > 0 && b.openQty === 0) return -1;
+    if (a.openQty === 0 && b.openQty > 0) return 1;
+    return Math.abs(b.floatPnl + b.realized) - Math.abs(a.floatPnl + a.realized);
+  });
+}
+
+// ============ 渲染 ============
+function fmt(v, cur='$') {
+  const sign = v >= 0 ? '+' : '';
+  return sign + cur + v.toFixed(2);
+}
+function render() {
+  const positions = computePositions();
+  
+  // 汇总（注意：港股 A 股币种不同，简化处理为各市场分别累加显示主要市场，这里全部累加显示）
+  let totalFloat = 0, totalReal = 0;
+  positions.forEach(p => { totalFloat += p.floatPnl; totalReal += p.realized; });
+  
+  const setColor = (el, v) => {
+    el.textContent = (v >= 0 ? '+' : '') + '$' + Math.abs(v).toFixed(2) * (v<0?-1:1).toFixed(2);
+    el.textContent = (v >= 0 ? '+$' : '-$') + Math.abs(v).toFixed(2);
+    el.className = 'stat-value ' + (v > 0 ? 'green' : v < 0 ? 'red' : 'gray');
+  };
+  setColor(document.getElementById('floatPnl'), totalFloat);
+  setColor(document.getElementById('realizedPnl'), totalReal);
+  setColor(document.getElementById('totalPnl'), totalFloat + totalReal);
+  
+  document.getElementById('posCount').textContent = `(${positions.length})`;
+  
+  const container = document.getElementById('positions');
+  if (positions.length === 0) {
+    container.innerHTML = `<div class="empty">还没有交易记录。<br>点下面的 🎤 用语音说，或点 + 手动添加。</div>`;
+    return;
+  }
+  
+  container.innerHTML = positions.map(p => {
+    const cur = currencySymbol(p.market);
+    const isClosed = p.openQty === 0;
+    const totalPnl = p.floatPnl + p.realized;
+    const cls = isClosed ? 'closed' : (totalPnl > 0 ? 'profit' : totalPnl < 0 ? 'loss' : '');
+    const pnlCls = totalPnl > 0 ? 'green' : totalPnl < 0 ? 'red' : 'gray';
+    
+    let priceLine = '';
+    if (p.curPrice) {
+      const chgCls = p.changePct >= 0 ? 'green' : 'red';
+      priceLine = `<span class="price-chip">现价 ${cur}${p.curPrice.toFixed(2)} <span class="${chgCls}">${p.changePct >= 0?'+':''}${p.changePct?.toFixed(2)}%</span></span>`;
+    }
+    
+    let detail = '';
+    if (!isClosed) {
+      detail = `持仓 ${p.openQty} 股 · 成本 ${cur}${p.avgCost.toFixed(2)}`;
+      if (p.curPrice) {
+        const fpCls = p.floatPnl >= 0 ? 'green' : 'red';
+        detail += ` · 浮动 <span class="${fpCls}">${p.floatPnl>=0?'+':''}${cur}${p.floatPnl.toFixed(2)}</span>`;
+      }
+    } else {
+      detail = '已清仓';
+    }
+    if (p.realized !== 0) {
+      const rCls = p.realized >= 0 ? 'green' : 'red';
+      detail += ` · 已实现 <span class="${rCls}">${p.realized>=0?'+':''}${cur}${p.realized.toFixed(2)}</span>`;
+    }
+    
+    const tradesHtml = p.trades.map(t => {
+      const tcls = t.action === 'BUY' ? 'trade-buy' : 'trade-sell';
+      const word = t.action === 'BUY' ? '买' : '卖';
+      return `<div class="trade-line">
+        <span class="${tcls}">${word}</span> ${t.qty} @ ${cur}${t.price.toFixed(2)} · ${t.date}
+        <button class="secondary" style="float:right; padding:2px 8px; font-size:11px;" onclick="deleteTrade('${t.id}')">删</button>
+      </div>`;
+    }).join('');
+    
+    return `<div class="position-card ${cls}">
+      <div class="pos-header">
+        <div><span class="pos-symbol">${p.symbol}</span><span class="pos-market">${p.market}</span>${priceLine}</div>
+        <div class="pos-pnl ${pnlCls}">${totalPnl>=0?'+':''}${cur}${Math.abs(totalPnl).toFixed(2)}</div>
+      </div>
+      <div class="pos-detail">${detail}</div>
+      <div class="pos-trades">${tradesHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+// ============ 添加交易 ============
+function openAddModal(prefill) {
+  currentEditId = null;
+  document.getElementById('modalTitle').textContent = '添加交易';
+  setAction(prefill?.action || 'BUY');
+  document.getElementById('inSymbol').value = prefill?.symbol || '';
+  document.getElementById('inQty').value = prefill?.qty || '';
+  document.getElementById('inPrice').value = prefill?.price || '';
+  document.getElementById('inDate').value = prefill?.date || new Date().toISOString().slice(0,10);
+  document.getElementById('inNote').value = prefill?.note || '';
+  document.getElementById('addModal').classList.add('show');
+}
+function closeAddModal() {
+  document.getElementById('addModal').classList.remove('show');
+}
+function setAction(a) {
+  currentAction = a;
+  document.getElementById('btnBuy').style.background = a === 'BUY' ? '#34c759' : '#e5e5ea';
+  document.getElementById('btnBuy').style.color = a === 'BUY' ? 'white' : '#1d1d1f';
+  document.getElementById('btnSell').style.background = a === 'SELL' ? '#ff3b30' : '#e5e5ea';
+  document.getElementById('btnSell').style.color = a === 'SELL' ? 'white' : '#1d1d1f';
+}
+function saveTradeFromForm() {
+  const symbol = document.getElementById('inSymbol').value.trim().toUpperCase();
+  const qty = parseFloat(document.getElementById('inQty').value);
+  const price = parseFloat(document.getElementById('inPrice').value);
+  const date = document.getElementById('inDate').value;
+  const note = document.getElementById('inNote').value.trim();
+  
+  if (!symbol || !qty || !price || !date) {
+    alert('请填写完整：代码、数量、价格、日期');
+    return;
+  }
+  
+  trades.push({
+    id: 't_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    symbol, action: currentAction, qty, price, date, note,
+    market: detectMarket(symbol)
+  });
+  saveTrades();
+  closeAddModal();
+  render();
+  // 自动获取该股票价格
+  fetchPrice(normalizeSymbol(symbol)).then(r => {
+    if (r) { prices[normalizeSymbol(symbol)] = r; render(); }
+  });
+}
+function deleteTrade(id) {
+  if (!confirm('删除这条交易？')) return;
+  trades = trades.filter(t => t.id !== id);
+  saveTrades();
+  render();
+}
+
+// ============ 语音输入 ============
+let recognition = null;
+let isRecording = false;
+
+function toggleVoice() {
+  if (isRecording) {
+    recognition?.stop();
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    alert('当前浏览器不支持语音识别。\n请用 Safari 打开（不能从主屏幕图标启动）。');
+    return;
+  }
+  
+  document.getElementById('voiceModal').classList.add('show');
+  document.getElementById('voiceText').textContent = '...';
+  document.getElementById('voiceParsed').style.display = 'none';
+  document.getElementById('voiceConfirmBtn').disabled = true;
+  
+  recognition = new SR();
+  recognition.lang = 'zh-CN';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  
+  recognition.onstart = () => {
+    isRecording = true;
+    document.getElementById('voiceIcon').textContent = '🔴';
+    document.getElementById('voiceStatus').textContent = '正在听... (再按一次停止)';
+    document.getElementById('micBtn').classList.add('recording');
+  };
+  recognition.onresult = (e) => {
+    let txt = '';
+    for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
+    document.getElementById('voiceText').textContent = txt;
+    // 实时尝试解析
+    const parsed = parseVoiceCommand(txt);
+    if (parsed) {
+      voiceParseResult = parsed;
+      showParsedResult(parsed);
+      document.getElementById('voiceConfirmBtn').disabled = false;
+    }
+  };
+  recognition.onerror = (e) => {
+    document.getElementById('voiceStatus').textContent = '错误: ' + e.error;
+    document.getElementById('voiceIcon').textContent = '⚠️';
+    isRecording = false;
+    document.getElementById('micBtn').classList.remove('recording');
+  };
+  recognition.onend = () => {
+    isRecording = false;
+    document.getElementById('voiceIcon').textContent = '🎙';
+    document.getElementById('voiceStatus').textContent = '识别结束。检查结果，点确认保存。';
+    document.getElementById('micBtn').classList.remove('recording');
+  };
+  recognition.start();
+}
+
+// 解析中文语音命令
+function parseVoiceCommand(text) {
+  if (!text) return null;
+  // 去除标点
+  let t = text.replace(/[,，。、 ]/g, ' ').trim();
+  
+  // 方向
+  let action = null;
+  if (/买入|买进|买|购入/.test(t)) action = 'BUY';
+  else if (/卖出|卖掉|卖|清仓/.test(t)) action = 'SELL';
+  if (!action) return null;
+  
+  // 提取代码（英文字母 / 4-6 位数字 / 带.的代码）
+  let symbol = null;
+  // 优先匹配带后缀的
+  let m = t.match(/[A-Z0-9]+\.(HK|SS|SZ|SH|US|O)/i);
+  if (m) symbol = m[0].toUpperCase();
+  if (!symbol) {
+    // 匹配 3-5 位字母（美股代码）
+    m = t.match(/\b[A-Za-z]{1,5}\b/);
+    if (m && !/^(买|卖|股|块|元|港币|美元|人民币|的|是)$/i.test(m[0])) {
+      symbol = m[0].toUpperCase();
+    }
+  }
+  if (!symbol) {
+    // 匹配 4-6 位数字（港股 A股）
+    m = t.match(/\b\d{4,6}\b/);
+    if (m) symbol = m[0];
+  }
+  // 中文公司名映射（常用）
+  const nameMap = {
+    '特斯拉': 'TSLA', '苹果': 'AAPL', '英伟达': 'NVDA', '微软': 'MSFT',
+    '谷歌': 'GOOG', '亚马逊': 'AMZN', '元宇宙': 'META', '脸书': 'META',
+    '茅台': '600519.SS', '中芯': '0981.HK', '腾讯': '0700.HK', '阿里': '9988.HK',
+    '美团': '3690.HK', '小米': '1810.HK', '比亚迪': '1211.HK',
+    'PLTR': 'PLTR', '帕兰提尔': 'PLTR', 'DHI': 'DHI', '霍顿': 'DHI',
+    'GE': 'GE', '通用电气': 'GE', '维诺瓦': 'GEV', 'GEV': 'GEV',
+  };
+  if (!symbol) {
+    for (const name in nameMap) {
+      if (t.includes(name)) { symbol = nameMap[name]; break; }
+    }
+  }
+  if (!symbol) return null;
+  
+  // 数量：找 "X 股"
+  let qty = null;
+  m = t.match(/(\d+(?:\.\d+)?)\s*股/);
+  if (m) qty = parseFloat(m[1]);
+  
+  // 价格：找 "X 块|元|港币|美元" 或 剩余的数字
+  let price = null;
+  m = t.match(/(\d+(?:\.\d+)?)\s*(块|元|港币|美元|人民币|刀)/);
+  if (m) price = parseFloat(m[1]);
+  
+  // 如果还有数字没分配
+  const nums = t.match(/\d+(?:\.\d+)?/g) || [];
+  const used = new Set();
+  if (qty !== null) used.add(qty.toString());
+  if (price !== null) used.add(price.toString());
+  const remaining = nums.filter(n => !used.has(n)).map(parseFloat);
+  
+  if (qty === null && remaining.length > 0) {
+    // 假设较大的整数是数量
+    const intNums = remaining.filter(n => Number.isInteger(n) && n >= 1);
+    if (intNums.length > 0) qty = intNums[0];
+  }
+  if (price === null && remaining.length > 0) {
+    // 假设带小数或较大的是价格
+    const others = remaining.filter(n => n !== qty);
+    if (others.length > 0) price = others[others.length - 1];
+  }
+  
+  if (!qty || !price) return null;
+  
+  return {
+    action, symbol: normalizeSymbol(symbol), qty, price,
+    date: new Date().toISOString().slice(0,10),
+    raw: text
+  };
+}
+
+function showParsedResult(p) {
+  const cur = currencySymbol(detectMarket(p.symbol));
+  const word = p.action === 'BUY' ? '买入' : '卖出';
+  const actCls = p.action === 'BUY' ? 'green' : 'red';
+  document.getElementById('voiceParsed').innerHTML = 
+    `<strong>识别结果：</strong><br>
+    方向：<span class="${actCls}">${word}</span><br>
+    代码：${p.symbol}<br>
+    数量：${p.qty} 股<br>
+    价格：${cur}${p.price.toFixed(2)}<br>
+    日期：${p.date}`;
+  document.getElementById('voiceParsed').style.display = 'block';
+}
+
+function confirmVoice() {
+  if (!voiceParseResult) return;
+  const p = voiceParseResult;
+  trades.push({
+    id: 't_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    symbol: p.symbol, action: p.action, qty: p.qty, price: p.price,
+    date: p.date, note: '语音录入：' + p.raw,
+    market: detectMarket(p.symbol)
+  });
+  saveTrades();
+  closeVoiceModal();
+  render();
+  fetchPrice(p.symbol).then(r => {
+    if (r) { prices[p.symbol] = r; render(); }
+  });
+}
+function closeVoiceModal() {
+  recognition?.stop();
+  document.getElementById('voiceModal').classList.remove('show');
+  voiceParseResult = null;
+}
+
+// ============ 导入/导出 ============
+function exportJSON() {
+  const blob = new Blob([JSON.stringify({ trades, exportedAt: new Date().toISOString() }, null, 2)], 
+    { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `trades_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function importJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.trades && Array.isArray(data.trades)) {
+        if (confirm(`导入 ${data.trades.length} 条交易？(会合并到现有数据)`)) {
+          trades = [...trades, ...data.trades];
+          saveTrades();
+          render();
+          refreshPrices();
+        }
+      } else {
+        alert('文件格式错误');
+      }
+    } catch(e) { alert('解析失败: ' + e.message); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+</script>
+
+</body>
+</html>
