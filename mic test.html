@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>麦克风诊断</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: #f5f5f7;
+    color: #1d1d1f;
+    min-height: 100vh;
+  }
+  h1 { font-size: 24px; margin: 0 0 16px; }
+  .card {
+    background: white;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .label { font-size: 13px; color: #6e6e73; margin-bottom: 4px; }
+  .value { font-size: 15px; font-weight: 500; word-break: break-all; }
+  .ok { color: #34c759; }
+  .bad { color: #ff3b30; }
+  .warn { color: #ff9500; }
+  button {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    background: #007aff;
+    color: white;
+    margin-top: 8px;
+    cursor: pointer;
+    -webkit-appearance: none;
+  }
+  button:active { opacity: 0.7; }
+  button.recording { background: #ff3b30; }
+  button:disabled { background: #c7c7cc; }
+  .log {
+    background: #1d1d1f;
+    color: #00ff41;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    max-height: 240px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.5;
+  }
+  .transcript {
+    min-height: 60px;
+    padding: 12px;
+    background: #f5f5f7;
+    border-radius: 10px;
+    font-size: 16px;
+    border: 2px dashed #c7c7cc;
+  }
+  .row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+  textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid #d2d2d7;
+    border-radius: 10px;
+    font-family: inherit;
+    resize: vertical;
+  }
+</style>
+</head>
+<body>
+
+<h1>🎤 麦克风诊断工具</h1>
+
+<div class="card">
+  <div class="label">环境检测</div>
+  <div class="row"><span>协议 (Protocol)</span><span class="value" id="protocol"></span></div>
+  <div class="row"><span>运行模式</span><span class="value" id="mode"></span></div>
+  <div class="row"><span>浏览器</span><span class="value" id="browser"></span></div>
+  <div class="row"><span>getUserMedia 支持</span><span class="value" id="gum"></span></div>
+  <div class="row"><span>SpeechRecognition 支持</span><span class="value" id="sr"></span></div>
+  <div class="row"><span>MediaRecorder 支持</span><span class="value" id="mr"></span></div>
+</div>
+
+<div class="card">
+  <div class="label">测试 1：请求麦克风权限（getUserMedia）</div>
+  <button id="btnGUM">请求麦克风权限</button>
+</div>
+
+<div class="card">
+  <div class="label">测试 2：Web Speech API 语音识别</div>
+  <button id="btnSR">开始语音识别</button>
+  <div class="transcript" id="transcript" style="margin-top:10px;">（识别结果会显示在这里）</div>
+</div>
+
+<div class="card">
+  <div class="label">测试 3：MediaRecorder 录音（备选方案）</div>
+  <button id="btnMR">开始录音</button>
+  <audio id="audioPlayback" controls style="width:100%; margin-top:10px; display:none;"></audio>
+</div>
+
+<div class="card">
+  <div class="label">测试 4：iOS 键盘听写（最稳方案）</div>
+  <textarea id="dictation" placeholder="点这里→点键盘上的麦克风图标 🎤 →开始说话"></textarea>
+</div>
+
+<div class="card">
+  <div class="label">📋 日志（出错信息看这里）</div>
+  <div class="log" id="log"></div>
+  <button id="btnClear" style="background:#8e8e93;">清空日志</button>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const log = (msg, type='') => {
+  const t = new Date().toLocaleTimeString();
+  const color = type === 'err' ? '#ff5555' : type === 'ok' ? '#00ff41' : '#ffff55';
+  $('log').innerHTML += `<span style="color:${color}">[${t}] ${msg}</span>\n`;
+  $('log').scrollTop = $('log').scrollHeight;
+};
+
+// ===== 环境检测 =====
+function detectEnv() {
+  // Protocol
+  const proto = location.protocol;
+  $('protocol').textContent = proto;
+  $('protocol').className = 'value ' + (proto === 'https:' || location.hostname === 'localhost' ? 'ok' : 'bad');
+
+  // Standalone mode (PWA)
+  const isStandalone = window.navigator.standalone === true || 
+                       window.matchMedia('(display-mode: standalone)').matches;
+  $('mode').textContent = isStandalone ? 'PWA (主屏幕)' : '浏览器';
+  $('mode').className = 'value ' + (isStandalone ? 'bad' : 'ok');
+  if (isStandalone) log('⚠️ 检测到 PWA standalone 模式，iOS 在此模式下会限制麦克风', 'err');
+
+  // Browser
+  const ua = navigator.userAgent;
+  let browser = 'Unknown';
+  if (/CriOS/.test(ua)) browser = 'Chrome on iOS';
+  else if (/FxiOS/.test(ua)) browser = 'Firefox on iOS';
+  else if (/EdgiOS/.test(ua)) browser = 'Edge on iOS';
+  else if (/Safari/.test(ua) && /iPhone|iPad/.test(ua)) browser = 'Safari iOS';
+  else if (/Safari/.test(ua)) browser = 'Safari';
+  else if (/Chrome/.test(ua)) browser = 'Chrome';
+  $('browser').textContent = browser;
+  log('UserAgent: ' + ua);
+
+  // getUserMedia
+  const hasGUM = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  $('gum').textContent = hasGUM ? '✅ 支持' : '❌ 不支持';
+  $('gum').className = 'value ' + (hasGUM ? 'ok' : 'bad');
+
+  // SpeechRecognition
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  $('sr').textContent = SR ? '✅ 支持' : '❌ 不支持';
+  $('sr').className = 'value ' + (SR ? 'ok' : 'bad');
+
+  // MediaRecorder
+  const hasMR = typeof MediaRecorder !== 'undefined';
+  $('mr').textContent = hasMR ? '✅ 支持' : '❌ 不支持';
+  $('mr').className = 'value ' + (hasMR ? 'ok' : 'bad');
+
+  log('环境检测完成', 'ok');
+}
+
+// ===== 测试 1: getUserMedia =====
+$('btnGUM').onclick = async () => {
+  log('请求麦克风权限...');
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('浏览器不支持 getUserMedia');
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    log('✅ 获取麦克风权限成功！', 'ok');
+    log(`音轨数: ${stream.getAudioTracks().length}`);
+    stream.getAudioTracks().forEach(t => {
+      log(`  - ${t.label || '(无标签)'} state=${t.readyState}`);
+      t.stop();
+    });
+    $('btnGUM').textContent = '✅ 权限已获取，可以再点测试';
+  } catch (e) {
+    log(`❌ 失败: ${e.name} - ${e.message}`, 'err');
+    if (e.name === 'NotAllowedError') {
+      log('→ 用户拒绝了权限，或系统设置里 Safari 没有麦克风权限', 'err');
+      log('→ 检查: 设置 → Safari → 麦克风 → 允许', 'err');
+    } else if (e.name === 'NotFoundError') {
+      log('→ 没找到麦克风设备', 'err');
+    } else if (e.name === 'NotReadableError') {
+      log('→ 麦克风被其他应用占用', 'err');
+    } else if (e.name === 'SecurityError') {
+      log('→ 安全错误，可能是 HTTP 而非 HTTPS', 'err');
+    }
+  }
+};
+
+// ===== 测试 2: SpeechRecognition =====
+let recognition = null;
+let srActive = false;
+$('btnSR').onclick = () => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    log('❌ 浏览器不支持 SpeechRecognition', 'err');
+    return;
+  }
+  if (srActive) {
+    recognition.stop();
+    return;
+  }
+  try {
+    recognition = new SR();
+    recognition.lang = 'zh-CN';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    
+    recognition.onstart = () => {
+      srActive = true;
+      $('btnSR').textContent = '🔴 录音中... 点击停止';
+      $('btnSR').classList.add('recording');
+      log('✅ SpeechRecognition started', 'ok');
+    };
+    recognition.onresult = (e) => {
+      let txt = '';
+      for (let i = 0; i < e.results.length; i++) {
+        txt += e.results[i][0].transcript;
+      }
+      $('transcript').textContent = txt;
+      log(`识别中: "${txt}"`);
+    };
+    recognition.onerror = (e) => {
+      log(`❌ SR Error: ${e.error} - ${e.message || ''}`, 'err');
+      if (e.error === 'not-allowed') log('→ 权限被拒绝', 'err');
+      if (e.error === 'no-speech') log('→ 没检测到说话声', 'err');
+      if (e.error === 'network') log('→ 网络问题（iOS Safari 需要联网）', 'err');
+      if (e.error === 'service-not-allowed') log('→ 服务不可用（PWA 模式或 iOS 限制）', 'err');
+    };
+    recognition.onend = () => {
+      srActive = false;
+      $('btnSR').textContent = '开始语音识别';
+      $('btnSR').classList.remove('recording');
+      log('SpeechRecognition ended');
+    };
+    recognition.start();
+  } catch (e) {
+    log(`❌ 启动失败: ${e.message}`, 'err');
+  }
+};
+
+// ===== 测试 3: MediaRecorder =====
+let mediaRecorder = null;
+let chunks = [];
+let mrStream = null;
+$('btnMR').onclick = async () => {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    return;
+  }
+  try {
+    mrStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    log('✅ 获取音频流', 'ok');
+    chunks = [];
+    mediaRecorder = new MediaRecorder(mrStream);
+    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks, { type: chunks[0]?.type || 'audio/webm' });
+      const url = URL.createObjectURL(blob);
+      $('audioPlayback').src = url;
+      $('audioPlayback').style.display = 'block';
+      log(`✅ 录音完成: ${(blob.size/1024).toFixed(1)} KB, type=${blob.type}`, 'ok');
+      $('btnMR').textContent = '开始录音';
+      $('btnMR').classList.remove('recording');
+      mrStream.getTracks().forEach(t => t.stop());
+    };
+    mediaRecorder.start();
+    $('btnMR').textContent = '🔴 录音中... 点击停止';
+    $('btnMR').classList.add('recording');
+    log('MediaRecorder started', 'ok');
+  } catch (e) {
+    log(`❌ ${e.name}: ${e.message}`, 'err');
+  }
+};
+
+$('btnClear').onclick = () => { $('log').innerHTML = ''; };
+
+// 启动时检测
+detectEnv();
+</script>
+
+</body>
+</html>
