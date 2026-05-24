@@ -133,6 +133,7 @@
     cursor: pointer;
   }
   .fab.add { background: white; color: #1d1d1f; font-size: 32px; font-weight: 300; }
+  .fab.text { background: #007aff; color: white; font-size: 24px; }
   .fab.mic { background: #1d1d1f; }
   .fab.recording { background: #ff3b30; animation: pulse 1.2s infinite; }
   @keyframes pulse {
@@ -280,8 +281,9 @@
 
 <!-- 浮动按钮 -->
 <div class="fab-container">
-  <button class="fab add" onclick="openAddModal()">+</button>
-  <button class="fab mic" id="micBtn" onclick="toggleVoice()">🎤</button>
+  <button class="fab add" onclick="openAddModal()" title="手动表单">+</button>
+  <button class="fab text" onclick="openTextModal()" title="文字解析（推荐用豆包等输入法）">⌨️</button>
+  <button class="fab mic" id="micBtn" onclick="toggleVoice()" title="Siri 语音">🎤</button>
 </div>
 
 <!-- 添加/编辑交易弹窗 -->
@@ -349,6 +351,38 @@
     <div class="modal-actions">
       <button class="secondary" onclick="closeVoiceModal()">取消</button>
       <button id="voiceConfirmBtn" onclick="confirmVoice()" disabled>确认添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- 文字输入弹窗（用其他输入法输入，如豆包） -->
+<div class="modal-overlay" id="textModal">
+  <div class="modal">
+    <h2>⌨️ 文字录入</h2>
+    <div style="font-size:13px; color:#6e6e73; margin-bottom:10px; line-height:1.5;">
+      💡 用你喜欢的输入法（如豆包、微信、搜狗），<br>
+      点空格键切换到语音输入说话，文字会更准。<br>
+      然后点下面"解析"按钮。
+    </div>
+    <textarea id="textInput" rows="3" 
+      placeholder="例：昨天买入特斯拉 100 股 250 块"
+      style="width:100%; padding:14px; font-size:17px; border:1px solid #d2d2d7; border-radius:12px; font-family:inherit; resize:vertical; line-height:1.5;"
+      autofocus></textarea>
+    <button onclick="parseTextInput()" style="width:100%; margin-top:10px; padding:14px; font-size:16px;">
+      🔍 解析这段文字
+    </button>
+    <div class="voice-parsed" id="textParsed" style="display:none;"></div>
+    <div class="voice-hint" style="margin-top:14px;">
+      <strong>示例（可直接复制修改）：</strong><br>
+      • 买入特斯拉 100 股 250 块<br>
+      • 昨天买 TSLA 50 股 280<br>
+      • 5 月 20 号卖 0700 港币 380 块 200 股<br>
+      • 前天买入茅台 10 股 1850<br>
+      • 3 天前卖 PLTR 100 股 25
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeTextModal()">取消</button>
+      <button id="textConfirmBtn" onclick="confirmText()" disabled>确认添加</button>
     </div>
   </div>
 </div>
@@ -1094,6 +1128,81 @@ function closeVoiceModal() {
   document.getElementById('voiceModal').classList.remove('show');
   voiceParseResult = null;
 }
+
+// ============ 文字输入（绕过 Siri，用其他输入法如豆包） ============
+let textParseResult = null;
+
+function openTextModal() {
+  document.getElementById('textModal').classList.add('show');
+  document.getElementById('textInput').value = '';
+  document.getElementById('textParsed').style.display = 'none';
+  document.getElementById('textConfirmBtn').disabled = true;
+  textParseResult = null;
+  // 自动聚焦，弹出键盘
+  setTimeout(() => document.getElementById('textInput').focus(), 100);
+}
+
+function closeTextModal() {
+  document.getElementById('textModal').classList.remove('show');
+  textParseResult = null;
+}
+
+function parseTextInput() {
+  const text = document.getElementById('textInput').value.trim();
+  if (!text) {
+    alert('请先输入文字');
+    return;
+  }
+  const parsed = parseVoiceCommand(text);
+  const parsedEl = document.getElementById('textParsed');
+  if (!parsed) {
+    parsedEl.innerHTML = `<span class="red">❌ 没能识别出交易信息</span><br>
+      <span style="font-size:13px; color:#6e6e73;">请确认包含：方向(买/卖) + 股票代码或名称 + 数量(X 股) + 价格(X 块/元/港币)</span>`;
+    parsedEl.style.display = 'block';
+    parsedEl.style.background = '#ffebee';
+    document.getElementById('textConfirmBtn').disabled = true;
+    return;
+  }
+  textParseResult = parsed;
+  const cur = currencySymbol(detectMarket(parsed.symbol));
+  const word = parsed.action === 'BUY' ? '买入' : '卖出';
+  const actCls = parsed.action === 'BUY' ? 'green' : 'red';
+  parsedEl.innerHTML = 
+    `<strong>识别结果：</strong><br>
+    方向：<span class="${actCls}">${word}</span><br>
+    代码：${parsed.symbol}<br>
+    数量：${parsed.qty} 股<br>
+    价格：${cur}${parsed.price.toFixed(2)}<br>
+    日期：${parsed.date}`;
+  parsedEl.style.display = 'block';
+  parsedEl.style.background = '#e8f5e9';
+  document.getElementById('textConfirmBtn').disabled = false;
+}
+
+function confirmText() {
+  if (!textParseResult) return;
+  const p = textParseResult;
+  trades.push({
+    id: 't_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    symbol: p.symbol, action: p.action, qty: p.qty, price: p.price,
+    date: p.date, note: '文字录入：' + p.raw,
+    market: detectMarket(p.symbol)
+  });
+  saveTrades();
+  closeTextModal();
+  render();
+  fetchPrice(p.symbol).then(r => {
+    if (r) { prices[p.symbol] = r; render(); }
+  });
+}
+
+// 文字框 Enter 键直接解析
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && document.activeElement?.id === 'textInput' && !e.shiftKey) {
+    e.preventDefault();
+    parseTextInput();
+  }
+});
 
 // ============ 导入/导出 ============
 function exportJSON() {
