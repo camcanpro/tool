@@ -336,10 +336,15 @@
     </div>
     <div class="voice-hint">
       <strong>说话示例：</strong><br>
-      • "买入特斯拉 100 股 250 块"<br>
-      • "卖出 TSLA 50 股 280"<br>
-      • "买 0981 港币 75 块 500 股"<br>
-      • "买入 600519 茅台 10 股 1800"
+      • "买入特斯拉 100 股 250 块"（今天）<br>
+      • "昨天买 TSLA 50 股 280"<br>
+      • "前天卖出茅台 10 股 1850"<br>
+      • "5 月 20 号买 0700 港币 380 块 200 股"<br>
+      • "3 天前卖 PLTR 100 股 25 块"<br>
+      <br>
+      <strong>日期可以说：</strong><br>
+      今天 / 昨天 / 前天 / 大前天 / 上周 /<br>
+      X 天前 / X 月 Y 号 / 5/20 / 2026-5-20
     </div>
     <div class="modal-actions">
       <button class="secondary" onclick="closeVoiceModal()">取消</button>
@@ -741,30 +746,293 @@ function parseVoiceCommand(text) {
     m = t.match(/\b\d{4,6}\b/);
     if (m) symbol = m[0];
   }
-  // 中文公司名映射（常用）
+  // 中文公司名映射（编辑这个表来扩充识别范围，越长的名字放前面）
   const nameMap = {
-    '特斯拉': 'TSLA', '苹果': 'AAPL', '英伟达': 'NVDA', '微软': 'MSFT',
-    '谷歌': 'GOOG', '亚马逊': 'AMZN', '元宇宙': 'META', '脸书': 'META',
-    '茅台': '600519.SS', '中芯': '0981.HK', '腾讯': '0700.HK', '阿里': '9988.HK',
-    '美团': '3690.HK', '小米': '1810.HK', '比亚迪': '1211.HK',
-    'PLTR': 'PLTR', '帕兰提尔': 'PLTR', 'DHI': 'DHI', '霍顿': 'DHI',
-    'GE': 'GE', '通用电气': 'GE', '维诺瓦': 'GEV', 'GEV': 'GEV',
+    // ===== 美股 - 科技 =====
+    '特斯拉': 'TSLA', '泰斯拉': 'TSLA',
+    '苹果': 'AAPL', '苹果公司': 'AAPL',
+    '英伟达': 'NVDA', '黄仁勋': 'NVDA',
+    '微软': 'MSFT', '微软公司': 'MSFT',
+    '谷歌': 'GOOG', '谷歌A': 'GOOGL', '字母': 'GOOG',
+    '亚马逊': 'AMZN',
+    '元宇宙': 'META', '脸书': 'META', 'Meta': 'META', '麦塔': 'META',
+    '奈飞': 'NFLX', '网飞': 'NFLX',
+    '甲骨文': 'ORCL',
+    '思科': 'CSCO',
+    '英特尔': 'INTC',
+    '超威': 'AMD', '超微': 'AMD', 'AMD': 'AMD',
+    '高通': 'QCOM',
+    '博通': 'AVGO',
+    '美光': 'MU',
+    '应用材料': 'AMAT',
+    '泛林': 'LRCX', '科林': 'LRCX',
+    '阿斯麦': 'ASML',
+    '台积电': 'TSM',
+    
+    // ===== 美股 - 软件/SaaS =====
+    '帕兰提尔': 'PLTR', '帕兰提': 'PLTR', '帕兰': 'PLTR', 'Palantir': 'PLTR',
+    '赛富时': 'CRM',
+    'Adobe': 'ADBE', '奥多比': 'ADBE',
+    '雪花': 'SNOW',
+    '塞拉布': 'DDOG', '数据狗': 'DDOG',
+    
+    // ===== 美股 - 金融/支付 =====
+    '伯克希尔': 'BRK.B', '巴菲特': 'BRK.B',
+    'JP摩根': 'JPM', '摩根大通': 'JPM',
+    '美国银行': 'BAC',
+    '富国银行': 'WFC',
+    '高盛': 'GS',
+    '摩根士丹利': 'MS',
+    '维萨': 'V', 'Visa': 'V',
+    '万事达': 'MA',
+    '贝宝': 'PYPL', 'PayPal': 'PYPL',
+    
+    // ===== 美股 - 消费/医疗 =====
+    '可口可乐': 'KO', '可乐': 'KO',
+    '百事': 'PEP',
+    '麦当劳': 'MCD',
+    '星巴克': 'SBUX',
+    '耐克': 'NKE',
+    '沃尔玛': 'WMT',
+    '好市多': 'COST',
+    '强生': 'JNJ',
+    '辉瑞': 'PFE',
+    '默克': 'MRK',
+    
+    // ===== 美股 - 能源/工业（含你关注的）=====
+    'GE': 'GE', '通用电气': 'GE',
+    '维诺瓦': 'GEV', 'GEV': 'GEV', 'GE维诺瓦': 'GEV',
+    '波音': 'BA',
+    '洛克希德': 'LMT',
+    '雪佛龙': 'CVX',
+    '埃克森': 'XOM', '埃克森美孚': 'XOM',
+    
+    // ===== 美股 - 地产/REIT（你关注的）=====
+    '霍顿': 'DHI', 'DHI': 'DHI', '霍顿房屋': 'DHI',
+    '莱纳': 'LEN',
+    '托尔兄弟': 'TOL',
+    
+    // ===== 美股 - 中概股 =====
+    '阿里巴巴': 'BABA', '阿里': 'BABA',
+    '京东': 'JD',
+    '拼多多': 'PDD',
+    '百度': 'BIDU',
+    '网易': 'NTES',
+    '哔哩哔哩': 'BILI', 'B站': 'BILI', 'bilibili': 'BILI',
+    '蔚来': 'NIO',
+    '小鹏': 'XPEV',
+    '理想': 'LI', '理想汽车': 'LI',
+    '满帮': 'YMM',
+    '陆金所': 'LU',
+    
+    // ===== 美股 - ETF =====
+    '标普': 'SPY', '标普500': 'SPY', 'SPY': 'SPY',
+    '纳指': 'QQQ', '纳斯达克': 'QQQ', 'QQQ': 'QQQ',
+    '罗素': 'IWM', 'IWM': 'IWM',
+    '道指': 'DIA', 'DIA': 'DIA',
+    '半导体ETF': 'SMH', 'SMH': 'SMH',
+    '中国ETF': 'FXI', 'FXI': 'FXI',
+    '黄金ETF': 'GLD', 'GLD': 'GLD',
+    
+    // ===== 港股 =====
+    '腾讯': '0700.HK', '腾讯控股': '0700.HK',
+    '阿里港股': '9988.HK', '阿里巴巴港股': '9988.HK',
+    '美团': '3690.HK',
+    '小米': '1810.HK', '小米集团': '1810.HK',
+    '比亚迪': '1211.HK', '比亚迪股份': '1211.HK',
+    '中芯': '0981.HK', '中芯国际': '0981.HK', 'SMIC': '0981.HK',
+    '京东港股': '9618.HK',
+    '快手': '1024.HK',
+    '网易港股': '9999.HK',
+    '汇丰': '0005.HK', '汇丰控股': '0005.HK',
+    '友邦': '1299.HK', '友邦保险': '1299.HK',
+    '中国移动': '0941.HK', '移动': '0941.HK',
+    '中国联通': '0762.HK', '联通': '0762.HK',
+    '中国电信': '0728.HK',
+    '建行': '0939.HK', '建设银行': '0939.HK',
+    '工行': '1398.HK', '工商银行': '1398.HK',
+    '中行': '3988.HK', '中国银行': '3988.HK',
+    '招行': '3968.HK', '招商银行': '3968.HK',
+    '平安': '2318.HK', '中国平安': '2318.HK',
+    '中海油': '0883.HK',
+    '中石油': '0857.HK',
+    '中石化': '0386.HK',
+    '吉利': '0175.HK', '吉利汽车': '0175.HK',
+    '理想港股': '2015.HK',
+    '小鹏港股': '9868.HK',
+    '蔚来港股': '9866.HK',
+    '万科': '2202.HK', '万科企业': '2202.HK',
+    '恒大': '3333.HK',
+    '碧桂园': '2007.HK',
+    '泡泡玛特': '9992.HK',
+    '老铺黄金': '6181.HK', '老铺': '6181.HK',
+    '安踏': '2020.HK', '安踏体育': '2020.HK',
+    '李宁': '2331.HK',
+    '海底捞': '6862.HK',
+    '蜜雪冰城': '2097.HK', '蜜雪': '2097.HK',
+    '京东物流': '2618.HK',
+    '哔哩港股': '9626.HK',
+    
+    // ===== A股 - 大蓝筹 =====
+    '茅台': '600519.SS', '贵州茅台': '600519.SS',
+    '五粮液': '000858.SZ',
+    '泸州老窖': '000568.SZ',
+    '洋河': '002304.SZ', '洋河股份': '002304.SZ',
+    '宁德时代': '300750.SZ', '宁德': '300750.SZ',
+    '比亚迪A': '002594.SZ',
+    '隆基': '601012.SS', '隆基绿能': '601012.SS',
+    '中芯A': '688981.SS', '中芯国际A': '688981.SS',
+    '海康': '002415.SZ', '海康威视': '002415.SZ',
+    '美的': '000333.SZ', '美的集团': '000333.SZ',
+    '格力': '000651.SZ', '格力电器': '000651.SZ',
+    '招行A': '600036.SS', '招商银行A': '600036.SS',
+    '平安A': '601318.SS', '中国平安A': '601318.SS',
+    '工行A': '601398.SS',
+    '建行A': '601939.SS',
+    '中行A': '601988.SS',
+    '中石油A': '601857.SS',
+    '中石化A': '600028.SS',
+    '中国神华': '601088.SS', '神华': '601088.SS',
+    '长江电力': '600900.SS',
+    '伊利': '600887.SS', '伊利股份': '600887.SS',
+    '海天': '603288.SS', '海天味业': '603288.SS',
+    '药明': '603259.SS', '药明康德': '603259.SS',
+    '恒瑞': '600276.SS', '恒瑞医药': '600276.SS',
+    '迈瑞': '300760.SZ', '迈瑞医疗': '300760.SZ',
+    '东方财富': '300059.SZ',
+    '中信证券': '600030.SS',
+    '中国船舶': '600150.SS',
+    '中国中免': '601888.SS', '中免': '601888.SS',
+    '紫金': '601899.SS', '紫金矿业': '601899.SS',
+    '北方稀土': '600111.SS',
+    '科大讯飞': '002230.SZ', '讯飞': '002230.SZ',
+    '立讯': '002475.SZ', '立讯精密': '002475.SZ',
+    '韦尔': '603501.SS', '韦尔股份': '603501.SS',
+    '兆易': '603986.SS', '兆易创新': '603986.SS',
+    '北方华创': '002371.SZ',
+    '中微': '688012.SS', '中微公司': '688012.SS',
+    '寒武纪': '688256.SS',
+    '海光': '688041.SS', '海光信息': '688041.SS',
   };
   if (!symbol) {
-    for (const name in nameMap) {
+    // 按名字长度从长到短排序，避免短名抢先匹配
+    const sortedNames = Object.keys(nameMap).sort((a,b) => b.length - a.length);
+    for (const name of sortedNames) {
       if (t.includes(name)) { symbol = nameMap[name]; break; }
     }
   }
   if (!symbol) return null;
   
-  // 数量：找 "X 股"
+  // ========== 日期解析（先做，把日期相关的数字从原文中"挖掉"，避免被当成数量/价格） ==========
+  let date = null;
+  const today = new Date();
+  const ymd = (d) => d.toISOString().slice(0,10);
+  
+  // 1) 相对日期：今天/昨天/前天/大前天
+  if (/今天|今日/.test(t)) {
+    date = ymd(today);
+    t = t.replace(/今天|今日/g, '');
+  } else if (/前天/.test(t)) {
+    const d = new Date(today); d.setDate(d.getDate() - 2);
+    date = ymd(d);
+    t = t.replace(/前天/g, '');
+  } else if (/大前天/.test(t)) {
+    const d = new Date(today); d.setDate(d.getDate() - 3);
+    date = ymd(d);
+    t = t.replace(/大前天/g, '');
+  } else if (/昨天|昨日/.test(t)) {
+    const d = new Date(today); d.setDate(d.getDate() - 1);
+    date = ymd(d);
+    t = t.replace(/昨天|昨日/g, '');
+  }
+  
+  // 2) "X 天前" / "X 周前" / "上周"
+  if (!date) {
+    let mm = t.match(/(\d+)\s*天前/);
+    if (mm) {
+      const d = new Date(today); d.setDate(d.getDate() - parseInt(mm[1]));
+      date = ymd(d);
+      t = t.replace(mm[0], '');
+    }
+  }
+  if (!date) {
+    let mm = t.match(/(\d+)\s*周前/);
+    if (mm) {
+      const d = new Date(today); d.setDate(d.getDate() - parseInt(mm[1]) * 7);
+      date = ymd(d);
+      t = t.replace(mm[0], '');
+    }
+  }
+  if (!date && /上周|上星期/.test(t)) {
+    const d = new Date(today); d.setDate(d.getDate() - 7);
+    date = ymd(d);
+    t = t.replace(/上周|上星期/g, '');
+  }
+  
+  // 3) "X 月 Y 号/日" 或 "X/Y" 或 "X-Y"
+  if (!date) {
+    let mm = t.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*[号日]/);
+    if (mm) {
+      const month = parseInt(mm[1]), day = parseInt(mm[2]);
+      let year = today.getFullYear();
+      // 如果月份在未来，自动用去年
+      const candidate = new Date(year, month - 1, day);
+      if (candidate > today) year -= 1;
+      date = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      t = t.replace(mm[0], '');
+    }
+  }
+  // "X 号/X 日"（不带月份，假设当月）
+  if (!date) {
+    let mm = t.match(/(?<!\d)(\d{1,2})\s*[号日](?!\d)/);
+    if (mm) {
+      const day = parseInt(mm[1]);
+      if (day >= 1 && day <= 31) {
+        const year = today.getFullYear();
+        const month = today.getMonth() + 1;
+        let candidate = new Date(year, month - 1, day);
+        // 如果是未来日期，假设上个月
+        if (candidate > today) {
+          candidate = new Date(year, month - 2, day);
+        }
+        date = ymd(candidate);
+        t = t.replace(mm[0], '');
+      }
+    }
+  }
+  // "YYYY-MM-DD" 或 "MM/DD" 或 "MM-DD"
+  if (!date) {
+    let mm = t.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+    if (mm) {
+      date = `${mm[1]}-${String(mm[2]).padStart(2,'0')}-${String(mm[3]).padStart(2,'0')}`;
+      t = t.replace(mm[0], '');
+    }
+  }
+  if (!date) {
+    let mm = t.match(/(?<!\d)(\d{1,2})[-\/](\d{1,2})(?!\d)/);
+    if (mm) {
+      const a = parseInt(mm[1]), b = parseInt(mm[2]);
+      if (a >= 1 && a <= 12 && b >= 1 && b <= 31) {
+        let year = today.getFullYear();
+        let candidate = new Date(year, a - 1, b);
+        if (candidate > today) year -= 1;
+        date = `${year}-${String(a).padStart(2,'0')}-${String(b).padStart(2,'0')}`;
+        t = t.replace(mm[0], '');
+      }
+    }
+  }
+  
+  // 默认今天
+  if (!date) date = ymd(today);
+  
+  // ========== 数量解析 ==========
   let qty = null;
   m = t.match(/(\d+(?:\.\d+)?)\s*股/);
   if (m) qty = parseFloat(m[1]);
   
-  // 价格：找 "X 块|元|港币|美元" 或 剩余的数字
+  // ========== 价格解析 ==========
   let price = null;
-  m = t.match(/(\d+(?:\.\d+)?)\s*(块|元|港币|美元|人民币|刀)/);
+  m = t.match(/(\d+(?:\.\d+)?)\s*(块|元|港币|美元|人民币|刀|港元)/);
   if (m) price = parseFloat(m[1]);
   
   // 如果还有数字没分配
@@ -775,12 +1043,10 @@ function parseVoiceCommand(text) {
   const remaining = nums.filter(n => !used.has(n)).map(parseFloat);
   
   if (qty === null && remaining.length > 0) {
-    // 假设较大的整数是数量
     const intNums = remaining.filter(n => Number.isInteger(n) && n >= 1);
     if (intNums.length > 0) qty = intNums[0];
   }
   if (price === null && remaining.length > 0) {
-    // 假设带小数或较大的是价格
     const others = remaining.filter(n => n !== qty);
     if (others.length > 0) price = others[others.length - 1];
   }
@@ -788,8 +1054,7 @@ function parseVoiceCommand(text) {
   if (!qty || !price) return null;
   
   return {
-    action, symbol: normalizeSymbol(symbol), qty, price,
-    date: new Date().toISOString().slice(0,10),
+    action, symbol: normalizeSymbol(symbol), qty, price, date,
     raw: text
   };
 }
